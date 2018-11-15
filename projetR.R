@@ -65,16 +65,19 @@ tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(langReview, auteurP
 nrow(tripAdvisorJanvier)
 
 freq <- function(dt, x, y) {
-  test<-dt %>% group_by(dt[,x],dt[,y]) %>% summarise(Freq = n())
-  test$Freq<-((test$Freq/nrow(dt))*100)
-  test<-test[with(test,order(dt[,x],decreasing = TRUE)),]
+  print(paste("select ",x,",",y,",(count(*)*100/(select count(*) from tripAdvisorJanvier as b where b.",x," = a.",x,")) as pourcentage from tripAdvisorJanvier as a
+      group by ",x,",",y," order by distance"))
+  test<-sqldf(paste("select ",x,",",y,",(count(*)*100/(select count(*) from tripAdvisorJanvier as b where b.",x," = a.",x,")) as pourcentage from tripAdvisorJanvier as a
+      group by ",x,",",y," order by distance",sep=""))
   return(test)
 }
 
-freq(tripAdvisorJanvier, "note","distance")
+testGraph<-freq(tripAdvisorJanvier, "distance","note")
 
+plot(testGraph)
 
 sapply(tripAdvisorJanvier, function(x) length(unique(x)))
 tripAdvisorJanvier
 distancePays
+write.csv(testGraph, file = "testGraph.csv")
 write.csv(tripAdvisorJanvier, file = "testResultat.csv")
