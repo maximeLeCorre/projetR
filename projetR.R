@@ -1,6 +1,7 @@
 setwd("C:/Users/maxime_pc/R")
 
 #setups####
+library(igraph)
 require(sqldf)
 require(data.table)
 require(ggplot2)
@@ -12,6 +13,7 @@ require(dismo)
 require(doParallel)
 require(dplyr)
 require(tidyr)
+require(igraph)
 
 #Acquisition####
 tripAdvisorJanvier<-fread("tripadvisor_2015-01_FRA.csv")
@@ -83,7 +85,7 @@ for(col1 in colnames(tripAdvisorJanvier)){
       temp<-freq(tripAdvisorJanvier,col1,col2)
       for(i in 1:nrow(temp)) {
         row <- temp[i,]
-        if((row[3] > 40 || row[3] < 10) && row[3] > 0){
+        if(row[3] > 80 ){
           names(row)<-c("node1", "node2", "weight")
           resultat<-rbind(resultat,row)
         }
@@ -95,5 +97,8 @@ for(col1 in colnames(tripAdvisorJanvier)){
 tripAdvisorJanvier
 
 resultat
-write.csv(resultat, file = "testGraph.csv")
+write.csv(resultat, file = "testGraph.csv" , row.names = F)
 
+xlist<-read.table("testGraph.csv", sep =",", header = T)
+xlist <-graph.data.frame(xlist)
+plot(xlist)
