@@ -32,14 +32,14 @@ class(tripAdvisorJanvier$distance_km)
 class(tripAdvisorJanvier$distance_km)
 
 #On transforme la colonne distance_km en palier
-tripAdvisorJanvier$distance<-ifelse(is.na(tripAdvisorJanvier$distance_km),"UNKNOWN",
-                                ifelse(tripAdvisorJanvier$distance_km == -1,"-1",
-                                ifelse(tripAdvisorJanvier$distance_km == 0,"0",
-                                ifelse(tripAdvisorJanvier$distance_km > 0 & tripAdvisorJanvier$distance_km < 500,"0-500",
-                                ifelse(tripAdvisorJanvier$distance_km>=500 & tripAdvisorJanvier$distance_km<1000,"500-1000",
-                                ifelse(tripAdvisorJanvier$distance_km>=1000 & tripAdvisorJanvier$distance_km<3000,"1000-3000",
-                                ifelse(tripAdvisorJanvier$distance_km>=3000 & tripAdvisorJanvier$distance_km<8000,"3000-8000",
-                                ifelse(tripAdvisorJanvier$distance_km>=8000 & !is.na(tripAdvisorJanvier$distance_km),"8000+",""
+tripAdvisorJanvier$distance<-ifelse(is.na(tripAdvisorJanvier$distance_km),"pays_inconnu",
+                                ifelse(tripAdvisorJanvier$distance_km == -1,"resident",
+                                ifelse(tripAdvisorJanvier$distance_km == 0,"pays_frontalier",
+                                ifelse(tripAdvisorJanvier$distance_km > 0 & tripAdvisorJanvier$distance_km < 500,"0-500 km",
+                                ifelse(tripAdvisorJanvier$distance_km>=500 & tripAdvisorJanvier$distance_km<1000,"500-1000 km",
+                                ifelse(tripAdvisorJanvier$distance_km>=1000 & tripAdvisorJanvier$distance_km<3000,"1000-3000 km",
+                                ifelse(tripAdvisorJanvier$distance_km>=3000 & tripAdvisorJanvier$distance_km<8000,"3000-8000 km",
+                                ifelse(tripAdvisorJanvier$distance_km>=8000 & !is.na(tripAdvisorJanvier$distance_km),"8000+ km",""
                                 ))))))))
 
 tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(distance_km))
@@ -47,6 +47,9 @@ tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(distance_km))
 #On convertit les champs en date pour par la suite récupérer le delta
 tripAdvisorJanvier$date_visit<-as.Date(tripAdvisorJanvier$date_visit,'%Y-%m-%d')
 tripAdvisorJanvier$date_review<-as.Date(tripAdvisorJanvier$date_review,'%Y-%m-%d')
+
+tripAdvisorJanvier$auteurGenre<-ifelse(tripAdvisorJanvier$auteurGenre=="","unknowSex",tripAdvisorJanvier$auteurGenre)
+tripAdvisorJanvier$auteurAge<-ifelse(tripAdvisorJanvier$auteurAge=="","unknowAge",tripAdvisorJanvier$auteurAge)
 
 tripAdvisorJanvier<-sqldf("select *,round((date_review-date_visit)/30) as temps_review from tripAdvisorJanvier")
 
@@ -61,23 +64,36 @@ tripAdvisorJanvier$temps_review<-ifelse(tripAdvisorJanvier$temps_review>=0 & tri
 #tripAdvisorJanvier[['date_review']] <- substr(tripAdvisorJanvier[,'date_review'], 1, nchar(tripAdvisorJanvier[,'date_review'])-3)
 
 #
-tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(langReview, auteurPays))
+tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(langReview, auteurPays, shape_name0, shape_iso))
 nrow(tripAdvisorJanvier)
 
 freq <- function(dt, x, y) {
   print(paste("select ",x,",",y,",(count(*)*100/(select count(*) from tripAdvisorJanvier as b where b.",x," = a.",x,")) as pourcentage from tripAdvisorJanvier as a
-      group by ",x,",",y," order by distance"))
+      group by ",x,",",y," order by ", x))
   test<-sqldf(paste("select ",x,",",y,",(count(*)*100/(select count(*) from tripAdvisorJanvier as b where b.",x," = a.",x,")) as pourcentage from tripAdvisorJanvier as a
-      group by ",x,",",y," order by distance",sep=""))
+      group by ",x,",",y," order by ",x ,sep=""))
   return(test)
 }
 
-testGraph<-freq(tripAdvisorJanvier, "distance","note")
+resultat<-setNames(data.frame(matrix(ncol = 3, nrow = 0)), c("node1", "node2", "weight"))
 
-plot(testGraph)
+for(col1 in colnames(tripAdvisorJanvier)){
+  for(col2 in colnames(tripAdvisorJanvier)){
+    if(col1 != col2){
+      temp<-freq(tripAdvisorJanvier,col1,col2)
+      for(i in 1:nrow(temp)) {
+        row <- temp[i,]
+        if((row[3] > 40 || row[3] < 10) && row[3] > 0){
+          names(row)<-c("node1", "node2", "weight")
+          resultat<-rbind(resultat,row)
+        }
+      }
+    }
+  }
+}
 
-sapply(tripAdvisorJanvier, function(x) length(unique(x)))
 tripAdvisorJanvier
-distancePays
-write.csv(testGraph, file = "testGraph.csv")
-write.csv(tripAdvisorJanvier, file = "testResultat.csv")
+
+resultat
+write.csv(resultat, file = "testGraph.csv")
+
