@@ -16,7 +16,7 @@ require(tidyr)
 require(igraph)
 
 #Acquisition####
-tripAdvisorJanvier<-fread("tripadvisor_2015-01_FRA.csv")
+tripAdvisorJanvier<-fread("tripadvisor_2015-01_all.csv")
 distancePays<-fread("distances_entre_pays.csv")
 
 sapply(tripAdvisorJanvier, function(x) length(unique(x)))
@@ -50,8 +50,12 @@ tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(distance_km))
 tripAdvisorJanvier$date_visit<-as.Date(tripAdvisorJanvier$date_visit,'%Y-%m-%d')
 tripAdvisorJanvier$date_review<-as.Date(tripAdvisorJanvier$date_review,'%Y-%m-%d')
 
-tripAdvisorJanvier$auteurGenre<-ifelse(tripAdvisorJanvier$auteurGenre=="","unknowSex",tripAdvisorJanvier$auteurGenre)
-tripAdvisorJanvier$auteurAge<-ifelse(tripAdvisorJanvier$auteurAge=="","unknowAge",tripAdvisorJanvier$auteurAge)
+
+tripAdvisorJanvier<-tripAdvisorJanvier[!(tripAdvisorJanvier$auteurAge==""),]
+tripAdvisorJanvier<-tripAdvisorJanvier[!(tripAdvisorJanvier$auteurGenre==""),]
+#traitement du sexe et de l'age
+#tripAdvisorJanvier$auteurGenre<-ifelse(tripAdvisorJanvier$auteurGenre=="","unknowSex",tripAdvisorJanvier$auteurGenre)
+#tripAdvisorJanvier$auteurAge<-ifelse(tripAdvisorJanvier$auteurAge=="","unknowAge",tripAdvisorJanvier$auteurAge)
 
 tripAdvisorJanvier<-sqldf("select *,round((date_review-date_visit)/30) as temps_review from tripAdvisorJanvier")
 
@@ -66,7 +70,7 @@ tripAdvisorJanvier$temps_review<-ifelse(tripAdvisorJanvier$temps_review>=0 & tri
 #tripAdvisorJanvier[['date_review']] <- substr(tripAdvisorJanvier[,'date_review'], 1, nchar(tripAdvisorJanvier[,'date_review'])-3)
 
 #
-tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(langReview, auteurPays, shape_name0, shape_iso))
+tripAdvisorJanvier <- subset(tripAdvisorJanvier, select = -c(langReview, auteurPays, shape_name0, shape_iso, temps_review))
 nrow(tripAdvisorJanvier)
 
 freq <- function(dt, x, y) {
@@ -85,9 +89,11 @@ for(col1 in colnames(tripAdvisorJanvier)){
       temp<-freq(tripAdvisorJanvier,col1,col2)
       for(i in 1:nrow(temp)) {
         row <- temp[i,]
-        if(row[3] > 80 ){
+        if((row[3] > 55 || row[3] < 20) && row[3]>0){
+          if(sqldf(paste("select (count(*)) from tripAdvisorJanvier where ", col1, "='",row[1],"' and ",col2," = '",row[2],"'",sep = ""))>nrow(tripAdvisorJanvier)/50){
           names(row)<-c("node1", "node2", "weight")
           resultat<-rbind(resultat,row)
+          }
         }
       }
     }
@@ -96,9 +102,14 @@ for(col1 in colnames(tripAdvisorJanvier)){
 
 tripAdvisorJanvier
 
+freq(tripAdvisorJanvier,"distance","note")
+
 resultat
 write.csv(resultat, file = "testGraph.csv" , row.names = F)
 
 xlist<-read.table("testGraph.csv", sep =",", header = T)
 xlist <-graph.data.frame(xlist)
-plot(xlist)
+
+E(xlist)$color <- ifelse(E(xlist)$weight < 20, "black", "green")
+
+plot(xlist, layout=layout_in_circle,edge.curved=.1)
